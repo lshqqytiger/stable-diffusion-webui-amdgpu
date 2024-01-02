@@ -29,12 +29,11 @@ tomesd==0.1.3
 torchdiffeq==0.2.3
 torchsde==0.2.5
 transformers==4.32.1
-
 onnx
 optimum
 invisible-watermark
-
 protobuf<4.0.0
 torch
-torchvision==0.14.1
+torchvision==0.15.1
 torch-directml
+httpx==0.24.1
