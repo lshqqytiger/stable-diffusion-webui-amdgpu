@@ -681,7 +681,7 @@ def dump_sysinfo():
     return filename
 
 
-def get_onnxruntime_source_for_rocm(rocm_ver):
+def get_onnxruntime_source_for_rocm(rocm_ver=None):
     ort_version = "1.16.3"
 
     try:
