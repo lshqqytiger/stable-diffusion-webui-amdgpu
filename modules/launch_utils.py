@@ -39,7 +39,7 @@ def check_python_version():
     micro = sys.version_info.micro
 
     if is_windows:
-        supported_minors = [10]
+        supported_minors = [10, 11]
     else:
         supported_minors = [7, 8, 9, 10, 11]
 
@@ -50,15 +50,11 @@ def check_python_version():
             f"""
 INCOMPATIBLE PYTHON VERSION
 
-This program is tested with 3.10.6 Python, but you have {major}.{minor}.{micro}.
+This program is tested with 3.11 Python, but you have {major}.{minor}.{micro}.
 If you encounter an error with "RuntimeError: Couldn't install torch." message,
 or any other error regarding unsuccessful package (library) installation,
-please downgrade (or upgrade) to the latest version of 3.10 Python
+please downgrade (or upgrade) to the latest version of 3.11 Python
 and delete current Python and "venv" folder in WebUI's directory.
-
-You can download 3.10 Python from here: https://www.python.org/downloads/release/python-3106/
-
-{"Alternatively, use a binary release of WebUI: https://github.com/AUTOMATIC1111/stable-diffusion-webui/releases/tag/v1.0.0-pre" if is_windows else ""}
 
 Use --skip-python-version-check to suppress this warning.
 """
@@ -434,19 +430,19 @@ def prepare_environment():
     system = platform.system()
     nvidia_driver_found = False
     backend = "cuda"
-    torch_command = "pip install torch==2.7.0 torchvision --extra-index-url https://download.pytorch.org/whl/cu121"
+    torch_command = "pip install torch==2.7.0 torchvision numpy==1.26.4 --extra-index-url https://download.pytorch.org/whl/cu121"
 
     if args.use_cpu_torch:
         backend = "cpu"
         torch_command = os.environ.get(
             "TORCH_COMMAND",
-            "pip install torch==2.7.0 torchvision",
+            "pip install torch==2.7.0 torchvision numpy==1.26.4",
         )
     elif args.use_directml:
         backend = "directml"
         torch_command = os.environ.get(
             "TORCH_COMMAND",
-            "pip install torch torchvision torch-directml",
+            "pip install torch==2.4.1 torchvision torch-directml numpy==1.26.4",
         )
         args.skip_python_version_check = True
     elif args.use_zluda:
@@ -484,7 +480,7 @@ def prepare_environment():
             )
             torch_command = os.environ.get(
                 "TORCH_COMMAND",
-                f"pip install torch==2.7.0 torchvision --index-url {torch_index_url}",
+                f"pip install torch==2.7.0 torchvision numpy==1.26.4 --extra-index-url {torch_index_url}",
             )
     else:
         nvidia_driver_found = shutil.which("nvidia-smi") is not None
@@ -496,7 +492,7 @@ def prepare_environment():
             )
             torch_command = os.environ.get(
                 "TORCH_COMMAND",
-                f"pip install torch==2.7.0 torchvision --extra-index-url {torch_index_url}",
+                f"pip install torch==2.7.0 torchvision numpy==1.26.4 --extra-index-url {torch_index_url}",
             )
 
     requirements_file = os.environ.get('REQS_FILE', "requirements_versions.txt")
@@ -593,13 +589,13 @@ def prepare_environment():
             if error is None:
                 try:
                     zluda_installer.load()
-                    torch_command = os.environ.get('TORCH_COMMAND', 'pip install torch==2.7.0 torchvision --index-url https://download.pytorch.org/whl/cu118')
+                    torch_command = os.environ.get('TORCH_COMMAND', 'pip install torch==2.7.0 torchvision numpy==1.26.4 --extra-index-url https://download.pytorch.org/whl/cu118')
                 except Exception as e:
                     error = e
                     print(f'Failed to load ZLUDA: {e}')
             if error is not None:
                 print('Using CPU-only torch')
-                torch_command = os.environ.get('TORCH_COMMAND', 'pip install torch torchvision')
+                torch_command = os.environ.get('TORCH_COMMAND', 'pip install torch==2.7.0 torchvision numpy==1.26.4')
 
         if rocm.is_wsl:
             rocm.load_hsa_runtime()

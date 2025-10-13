@@ -14,7 +14,7 @@ inflection
 jsonmerge
 kornia
 lark
-numpy
+numpy<2
 omegaconf
 open-clip-torch
 
