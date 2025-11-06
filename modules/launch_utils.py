@@ -33,7 +33,7 @@ os.environ.setdefault('GRADIO_ANALYTICS_ENABLED', 'False')
 
 
 def check_python_version():
-    is_windows = platform.system() == "Windows"
+    is_windows = sys.platform == "win32"
     major = sys.version_info.major
     minor = sys.version_info.minor
     micro = sys.version_info.micro
@@ -427,16 +427,15 @@ def requirements_met(requirements_file):
 def prepare_environment():
     from modules import rocm
 
-    system = platform.system()
     nvidia_driver_found = False
-    backend = "cuda"
-    torch_command = "pip install torch==2.7.0 torchvision numpy==1.26.4 --extra-index-url https://download.pytorch.org/whl/cu121"
+    backend = "unknown"
+    torch_command = "pip install torch==2.7.1 torchvision numpy==1.26.4"
 
     if args.use_cpu_torch:
         backend = "cpu"
         torch_command = os.environ.get(
             "TORCH_COMMAND",
-            "pip install torch==2.7.0 torchvision numpy==1.26.4",
+            "pip install torch==2.7.1 torchvision numpy==1.26.4",
         )
     elif args.use_directml:
         backend = "directml"
@@ -450,7 +449,7 @@ def prepare_environment():
         backend = "zluda"
     elif args.use_ipex:
         backend = "ipex"
-        if system == "Windows":
+        if sys.platform == "win32":
             # The "Nuullll/intel-extension-for-pytorch" wheels were built from IPEX source for Intel Arc GPU: https://github.com/intel/intel-extension-for-pytorch/tree/xpu-main
             # This is NOT an Intel official release so please use it at your own risk!!
             # See https://github.com/Nuullll/intel-extension-for-pytorch/releases/tag/v2.0.110%2Bxpu-master%2Bdll-bundle for details.
@@ -469,19 +468,6 @@ def prepare_environment():
             # See https://intel.github.io/intel-extension-for-pytorch/index.html#installation for details.
             torch_index_url = os.environ.get('TORCH_INDEX_URL', "https://pytorch-extension.intel.com/release-whl/stable/xpu/us/")
             torch_command = os.environ.get('TORCH_COMMAND', f"pip install torch==2.0.0a0 intel-extension-for-pytorch==2.0.110+gitba7f6c1 --extra-index-url {torch_index_url}")
-    elif rocm.is_installed:
-        if system == "Windows": # ZLUDA
-            args.use_zluda = True
-            backend = "zluda"
-        else:
-            backend = "rocm"
-            torch_index_url = os.environ.get(
-                "TORCH_INDEX_URL", "https://download.pytorch.org/whl/rocm6.3"
-            )
-            torch_command = os.environ.get(
-                "TORCH_COMMAND",
-                f"pip install torch==2.7.0 torchvision numpy==1.26.4 --extra-index-url {torch_index_url}",
-            )
     else:
         nvidia_driver_found = shutil.which("nvidia-smi") is not None
         if nvidia_driver_found:
@@ -492,7 +478,7 @@ def prepare_environment():
             )
             torch_command = os.environ.get(
                 "TORCH_COMMAND",
-                f"pip install torch==2.7.0 torchvision numpy==1.26.4 --extra-index-url {torch_index_url}",
+                f"pip install torch==2.7.1 torchvision numpy==1.26.4 --extra-index-url {torch_index_url}",
             )
 
     requirements_file = os.environ.get('REQS_FILE', "requirements_versions.txt")
@@ -537,37 +523,60 @@ def prepare_environment():
     if args.skip_torch_cuda_test:
         print("WARNING: you should not skip torch test unless you want CPU to work.")
 
-    if backend in ("rocm", "zluda",):
-        device = None
+    device = None
+    if backend in ("rocm", "zluda", "unknown"):
+        amd_gpus = []
         try:
             amd_gpus = rocm.get_agents()
-            if len(amd_gpus) == 0:
-                print('ROCm: no agent was found')
-            else:
-                print(f'ROCm: agents={[gpu.name for gpu in amd_gpus]}')
-                if args.device_id is None:
-                    index = 0
-                    for idx, gpu in enumerate(amd_gpus):
-                        index = idx
-                        if not gpu.is_apu:
-                            # although apu was found, there can be a dedicated card. do not break loop.
-                            # if no dedicated card was found, apu will be used.
-                            break
-                    os.environ.setdefault('HIP_VISIBLE_DEVICES', str(index))
-                    device = amd_gpus[index]
-                else:
-                    device_id = int(args.device_id)
-                    if device_id < len(amd_gpus):
-                        device = amd_gpus[device_id]
+            print('ROCm: AMD toolkit detected')
         except Exception as e:
             print(f'ROCm agent enumerator failed: {e}')
+
+        if len(amd_gpus) == 0:
+            if args.use_rocm or args.use_zluda:
+                print('No ROCm agent was found. Please make sure that graphics driver is installed and up to date.')
+            backend = "cpu"
+        else:
+            print(f'ROCm: agents={[gpu.name for gpu in amd_gpus]}')
+            if args.device_id is None:
+                index = 0
+                for idx, gpu in enumerate(amd_gpus):
+                    index = idx
+                    if not gpu.is_apu:
+                        # although apu was found, there can be a dedicated card. do not break loop.
+                        # if no dedicated card was found, apu will be used.
+                        break
+                os.environ.setdefault('HIP_VISIBLE_DEVICES', str(index))
+                device = amd_gpus[index]
+            else:
+                device_id = int(args.device_id)
+                if device_id < len(amd_gpus):
+                    device = amd_gpus[device_id]
+
+            if backend != "zluda":
+                backend = "rocm"
+
+    if backend in ("rocm", "zluda"):
+        assert device is not None
+
+        if sys.platform == "win32" and backend == "rocm":
+            if device.therock is None:
+                backend = "zluda"
+            else:
+                run_pip(f"install rocm rocm-sdk-core --index-url https://rocm.nightlies.amd.com/v2-staging/{device.therock}", "rocm")
+                rocm.refresh()
 
         msg = f'ROCm: version={rocm.version}'
         if device is not None:
             msg += f', using agent {device.name}'
         print(msg)
 
-        if system == "Windows":
+        if backend == "rocm":
+            if isinstance(rocm.environment, rocm.PythonPackageEnvironment):
+                torch_command = os.environ.get('TORCH_COMMAND', f'pip install torch torchvision --index-url https://rocm.nightlies.amd.com/v2-staging/{device.therock}')
+            else:
+                torch_command = os.environ.get('TORCH_COMMAND', 'pip install --no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torch-2.8.0a0%2Bgitfc14c65-cp312-cp312-win_amd64.whl https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torchvision-0.24.0a0%2Bc85f008-cp312-cp312-win_amd64.whl')
+        else:
             if args.device_id is not None:
                 if os.environ.get('HIP_VISIBLE_DEVICES', None) is not None:
                     print('Setting HIP_VISIBLE_DEVICES and --device-id at the same time may be mistake.')
@@ -589,16 +598,16 @@ def prepare_environment():
             if error is None:
                 try:
                     zluda_installer.load()
-                    torch_command = os.environ.get('TORCH_COMMAND', 'pip install torch==2.7.0 torchvision numpy==1.26.4 --extra-index-url https://download.pytorch.org/whl/cu118')
+                    torch_command = os.environ.get('TORCH_COMMAND', 'pip install torch==2.7.1 torchvision numpy==1.26.4 --extra-index-url https://download.pytorch.org/whl/cu118')
                 except Exception as e:
                     error = e
                     print(f'Failed to load ZLUDA: {e}')
             if error is not None:
                 print('Using CPU-only torch')
-                torch_command = os.environ.get('TORCH_COMMAND', 'pip install torch==2.7.0 torchvision numpy==1.26.4')
+                torch_command = os.environ.get('TORCH_COMMAND', 'pip install torch==2.7.1 torchvision numpy==1.26.4')
 
         if rocm.is_wsl:
-            rocm.load_hsa_runtime()
+            rocm.postinstall()
 
     if args.reinstall_torch or not is_installed("torch") or not is_installed("torchvision"):
         run(f'"{python}" -m {torch_command}', "Installing torch and torchvision", "Couldn't install torch", live=True)
@@ -606,9 +615,6 @@ def prepare_environment():
 
     if args.use_ipex or args.use_directml or args.use_cpu_torch:
         args.skip_torch_cuda_test = True
-
-    if rocm.is_installed:
-        rocm.conceal()
 
     if not args.skip_torch_cuda_test and not check_run_python("import torch; assert torch.cuda.is_available()"):
         raise RuntimeError(

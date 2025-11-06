@@ -19,7 +19,7 @@ omegaconf
 open-clip-torch
 
 piexif
-protobuf==3.20.2
+protobuf==4.25.3
 psutil
 pytorch_lightning
 requests
@@ -28,7 +28,7 @@ resize-right
 safetensors
 scikit-image>=0.19
 tomesd
-torch>=2.0.0
+torch>=2.2.1
 torchdiffeq
 torchsde
 transformers==4.30.2
