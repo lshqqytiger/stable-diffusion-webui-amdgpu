@@ -246,6 +246,6 @@ def initialize_onnx():
         fastapi_encoders.jsonable_encoder = jsonable_encoder
 
         print(f'ONNX: version={ort.__version__} provider={opts.onnx_execution_provider}, available={available_execution_providers}')
-    except Exception as e:
-        print(f'ONNX failed to initialize: {e}')
+    except Exception:
+        pass
     initialized = True
