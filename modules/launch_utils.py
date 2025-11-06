@@ -527,7 +527,6 @@ def prepare_environment():
         amd_gpus = []
         try:
             amd_gpus = rocm.get_agents()
-            print('ROCm: AMD toolkit detected')
         except Exception as e:
             print(f'ROCm agent enumerator failed: {e}')
 
@@ -536,6 +535,7 @@ def prepare_environment():
                 print('No ROCm agent was found. Please make sure that graphics driver is installed and up to date.')
             backend = "cpu"
         else:
+            print('ROCm: AMD toolkit detected')
             print(f'ROCm: agents={[gpu.name for gpu in amd_gpus]}')
             if args.device_id is None:
                 index = 0
