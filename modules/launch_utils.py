@@ -7,7 +7,6 @@ import shutil
 import sys
 import importlib.util
 import importlib.metadata
-import platform
 import json
 import glob
 import shlex

@@ -129,7 +129,7 @@ class Agent:
 
 def find() -> Union[Environment, None]:
     try: # TheRock
-        import _rocm_sdk_core # pylint: disable=unused-import
+        import _rocm_sdk_core # noqa: F401
         return PythonPackageEnvironment()
     except ImportError:
         pass

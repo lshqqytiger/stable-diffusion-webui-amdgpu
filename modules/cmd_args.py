@@ -77,6 +77,7 @@ parser.add_argument("--use-cpu-torch", action="store_true", help="use torch buil
 parser.add_argument("--use-directml", action="store_true", help="use DirectML device as torch device")
 parser.add_argument("--use-zluda", action="store_true", help="use ZLUDA device as torch device")
 parser.add_argument("--use-nightly", action="store_true", help="use nightly build of ZLUDA when combined with --use-zluda")
+parser.add_argument("--use-rocm", action="store_true", help="use ROCm device as torch device")
 parser.add_argument("--use-ipex", action="store_true", help="use Intel XPU as torch device")
 parser.add_argument("--disable-model-loading-ram-optimization", action='store_true', help="disable an optimization that reduces RAM use when loading a model")
 parser.add_argument("--listen", action='store_true', help="launch gradio with 0.0.0.0 as server name, allowing to respond to network requests")
