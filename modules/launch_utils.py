@@ -531,10 +531,13 @@ def prepare_environment():
             print(f'ROCm agent enumerator failed: {e}')
 
         if len(amd_gpus) == 0:
-            if args.use_rocm or args.use_zluda:
-                print('No ROCm agent was found. Please make sure that graphics driver is installed and up to date.')
-            backend = "cpu"
-            args.skip_torch_cuda_test = True
+            if args.use_zluda:
+                print('WARNING: No ROCm agent was found. Please make sure that graphics driver is installed and up to date.')
+                backend = "zluda"
+            else:
+                print('FATAL: No ROCm agent was found. Please make sure that graphics driver is installed and up to date.')
+                backend = "cpu"
+                args.skip_torch_cuda_test = True
         else:
             print(f'ROCm: agents={[gpu.name for gpu in amd_gpus]}')
             if args.device_id is None:
@@ -556,9 +559,8 @@ def prepare_environment():
                 backend = "rocm"
 
     if backend in ("rocm", "zluda"):
-        assert device is not None
-
         if sys.platform == "win32" and backend == "rocm":
+            assert device is not None
             if device.therock is None:
                 backend = "zluda"
             else:
@@ -571,10 +573,13 @@ def prepare_environment():
         print(msg)
 
         if backend == "rocm":
-            if isinstance(rocm.environment, rocm.PythonPackageEnvironment):
-                torch_command = os.environ.get('TORCH_COMMAND', f'pip install torch torchvision --index-url https://rocm.nightlies.amd.com/v2-staging/{device.therock}')
+            if sys.platform == "win32":
+                if isinstance(rocm.environment, rocm.PythonPackageEnvironment):
+                    torch_command = os.environ.get('TORCH_COMMAND', f'pip install torch torchvision --index-url https://rocm.nightlies.amd.com/v2-staging/{device.therock}')
+                else:
+                    torch_command = os.environ.get('TORCH_COMMAND', 'pip install --no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torch-2.8.0a0%2Bgitfc14c65-cp312-cp312-win_amd64.whl https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torchvision-0.24.0a0%2Bc85f008-cp312-cp312-win_amd64.whl')
             else:
-                torch_command = os.environ.get('TORCH_COMMAND', 'pip install --no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torch-2.8.0a0%2Bgitfc14c65-cp312-cp312-win_amd64.whl https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torchvision-0.24.0a0%2Bc85f008-cp312-cp312-win_amd64.whl')
+                raise NotImplementedError("TODO")
         else:
             if args.device_id is not None:
                 if os.environ.get('HIP_VISIBLE_DEVICES', None) is not None:
@@ -590,7 +595,8 @@ def prepare_environment():
                 if zluda_installer.is_reinstall_needed():
                     zluda_installer.uninstall()
                 zluda_installer.install()
-                zluda_installer.set_default_agent(device)
+                if device is not None:
+                    zluda_installer.set_default_agent(device)
             except Exception as e:
                 error = e
                 print(f'Failed to install ZLUDA: {e}')
