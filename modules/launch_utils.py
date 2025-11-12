@@ -534,8 +534,8 @@ def prepare_environment():
             if args.use_rocm or args.use_zluda:
                 print('No ROCm agent was found. Please make sure that graphics driver is installed and up to date.')
             backend = "cpu"
+            args.skip_torch_cuda_test = True
         else:
-            print('ROCm: AMD toolkit detected')
             print(f'ROCm: agents={[gpu.name for gpu in amd_gpus]}')
             if args.device_id is None:
                 index = 0
