@@ -241,7 +241,11 @@ def initialize_onnx():
         diffusers.ORTStableDiffusionXLPipeline = diffusers.OnnxStableDiffusionXLPipeline # Huggingface model compatibility
         diffusers.ORTStableDiffusionXLImg2ImgPipeline = diffusers.OnnxStableDiffusionXLImg2ImgPipeline
 
-        optimum.onnxruntime.modeling_diffusion.ORTPipelinePart.to = ORTDiffusionModelPart_to # pylint: disable=protected-access
+        # ORTPipelinePart was only used from optimum versions 1.23.0 through 1.25.3
+        from importlib.metadata import version as pkg_ver
+        opt_ver = pkg_ver('optimum').split('.')
+        if opt_ver[0] == "1" and 23 <= int(opt_ver[1]) < 26:
+            optimum.onnxruntime.modeling_diffusion.ORTPipelinePart.to = ORTDiffusionModelPart_to # pylint: disable=protected-access
 
         fastapi_encoders.jsonable_encoder = jsonable_encoder
 
